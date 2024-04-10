@@ -1,58 +1,55 @@
-name: Docker build
-
-on:
-  push:
-    branches:
-      - master
-    paths:
-      - 'docker/**'
-  pull_request:
-    branches:
-      - '*'
-    paths:
-      - 'docker/**'
 env:
   MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=60
-
-permissions:
-  contents: read
-
 jobs:
   build:
-    strategy:
-      fail-fast: true
-      matrix:
-        os: ['ubuntu-latest', 'macos-latest']
-        include:
-          - spark: 3.4.1
-            sedona: 1.4.1
-          - spark: 3.4.1
-            sedona: latest
-          - spark: 3.3.2
-            sedona: latest
-    runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
-
+    runs-on: self-hosted
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-java@v4
+    - continue-on-error: true
+      uses: actions/checkout@v4
+    - continue-on-error: true
+      uses: actions/setup-java@v4
       with:
-        distribution: 'zulu'
+        distribution: zulu
         java-version: 11
-    - name: Cache Maven packages
+    - continue-on-error: true
+      name: Cache Maven packages
       uses: actions/cache@v3
       with:
-        path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        path: ~/.m2
         restore-keys: ${{ runner.os }}-m2
-    - name: Setup docker (missing on MacOS)
+    - continue-on-error: true
       if: runner.os == 'macos'
-      run: |
-        brew install docker
+      name: Setup docker (missing on MacOS)
+      run: 'brew install docker
+
         colima start
-    - env:
-        SPARK_VERSION: ${{ matrix.spark }}
+
+        '
+    - continue-on-error: true
+      env:
         SEDONA_VERSION: ${{ matrix.sedona }}
+        SPARK_VERSION: ${{ matrix.spark }}
       run: ./docker/sedona-spark-jupyterlab/build.sh ${SPARK_VERSION} ${SEDONA_VERSION}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+        - sedona: 1.4.1
+          spark: 3.4.1
+        - sedona: latest
+          spark: 3.4.1
+        - sedona: latest
+          spark: 3.3.2
+        os:
+        - ubuntu-latest
+        - macos-latest
+name: Docker build
+on:
+  repository_dispatch:
+    types: trigger-ga___docker-build.yml
+permissions:
+  contents: read
